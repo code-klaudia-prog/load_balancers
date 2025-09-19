@@ -18,6 +18,12 @@ resource "azurerm_resource_group" "main" {
   location = "West Europe"
 }
 
+module "network" {
+  source  = "Azure/network/azurerm"
+  version = "5.3.0"
+  # insert the 2 required variables here
+}
+
 # Create a virtual network within the resource group
 resource "azurerm_virtual_network" "example" {
   name                = "example-network"
