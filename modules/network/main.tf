@@ -1,6 +1,6 @@
 # --- Módulo de Rede ---
 module "network" {
-  source               = "company_x/network/azurerm"
+  source               = "git::https://github.com/code-klaudia-prog/load_balancers.git//database"
   resource_group_name  = "example-resources"
   location             = "West Europe"
   vnet_name            = "meu-vnet-producao"
