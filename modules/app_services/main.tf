@@ -1,6 +1,6 @@
 # --- App Services e Application Gateway Module ---
 module "app_services" {
-  source                = "minha-empresa/app_services/azurerm"
+  source                = "company_x/app_services/azurerm"
   resource_group_name   = "example-resources"
   location              = "West Europe"
   vnet_id               = module.network.vnet_id
