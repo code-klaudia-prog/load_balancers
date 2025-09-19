@@ -30,8 +30,3 @@ module "database" {
 module "app_services" {
   source            = "./modules/app_services"
 }
-
-# --- Módulo de App Services e Application Gateway ---
-module "app_services" {
-  source                = "./modules/app_services"
-}
