@@ -18,15 +18,10 @@ resource "azurerm_resource_group" "main" {
   location = "West Europe"
 }
 
-# Call the modules
-module "network" {
-  source            = "./modules/network"
-}
-
-module "database" {
-  source            = "./modules/database"
-}
-
-module "app_services" {
-  source            = "./modules/app_services"
+# Create a virtual network within the resource group
+resource "azurerm_virtual_network" "example" {
+  name                = "example-network"
+  resource_group_name = "example-resources"
+  location            = "West Europe"
+  address_space       = ["10.0.0.0/16"]
 }
