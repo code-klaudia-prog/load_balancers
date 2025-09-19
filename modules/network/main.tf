@@ -1,6 +1,6 @@
 # --- Módulo de Rede ---
 module "network" {
-  source               = "./modules/network"
+  source               = "/modules/network"
   resource_group_name  = "example-resources"
   location             = "West Europe"
   vnet_name            = "meu-vnet-producao"
