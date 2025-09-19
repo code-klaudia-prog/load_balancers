@@ -1,6 +1,6 @@
 # --- Databse Module ---
 module "database" {
-  source               = "git::https://github.com/seu-utilizador/repositorio-de-modulos.git//app_services"
+  source               = "git::https://github.com/code-klaudia-prog/load_balancers.git//database"
   resource_group_name  = "example-resources"
   location             = "West Europe"
   vnet_id              = module.network.vnet_id
