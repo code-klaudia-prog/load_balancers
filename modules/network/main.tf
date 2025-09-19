@@ -1,6 +1,6 @@
 # --- Módulo de Rede ---
 module "network" {
-  source               = "source = "minha-empresa/network/azurerm"
+  source               = "minha-empresa/network/azurerm"
   resource_group_name  = "example-resources"
   location             = "West Europe"
   vnet_name            = "meu-vnet-producao"
