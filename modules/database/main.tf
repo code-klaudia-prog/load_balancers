@@ -1,6 +1,6 @@
 # --- Databse Module ---
 module "database" {
-  source               = "./modules/database"
+  source               = "/modules/database"
   resource_group_name  = "example-resources"
   location             = "West Europe"
   vnet_id              = module.network.vnet_id
