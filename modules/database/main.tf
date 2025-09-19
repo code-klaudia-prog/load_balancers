@@ -1,6 +1,6 @@
 # --- Databse Module ---
 module "database" {
-  source               = "minha-empresa/database/azurerm"
+  source               = "company_x/database/azurerm"
   resource_group_name  = "example-resources"
   location             = "West Europe"
   vnet_id              = module.network.vnet_id
