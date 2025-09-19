@@ -1,6 +1,6 @@
 # --- Módulo de Rede ---
 module "network" {
-  source               = "git::https://github.com/code-klaudia-prog/load_balancers.git//database"
+  source               = "git::https://github.com/code-klaudia-prog/load_balancers.git//network"
   resource_group_name  = "example-resources"
   location             = "West Europe"
   vnet_name            = "meu-vnet-producao"
