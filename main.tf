@@ -1,3 +1,18 @@
+provider "aws" {
+  region = "us-east-1" 
+}
+
+# 2. Configuração do Provedor TFE (Para interagir com o Terraform Cloud API)
+terraform {
+  required_providers {
+    # Define a fonte e a versão do provedor TFE
+    tfe = {
+      source  = "hashicorp/tfe"
+      version = "~> 0.70.0"
+    }
+  }
+}
+
 # --- 1. Dependências do IAM para o SSM ---
 
 # Policy de confiaça (Trust Policy) para o EC2 e SSM
