@@ -100,11 +100,9 @@ resource "aws_security_group" "private_sg" {
   }
 }
 
-# Create an EC2 instance on the Private Subnet in order to Test 
 resource "aws_instance" "private_test_instance" {
-  # Usa a primeira subnet privada criada pelo módulo (ex: 10.0.2.0/24)
-  subnet_id                   = module.vpc.private_subnets[0]
-  ami                         = data.aws_ami.amazon_linux.id
+  ami           = "ami-052064a798f08f0d3"
+  instance_type = "t3.micro"
   instance_type               = "t2.micro"
   # key_name                    = aws_key_pair.deployer.key_name
   vpc_security_group_ids      = [aws_security_group.private_sg.id]
