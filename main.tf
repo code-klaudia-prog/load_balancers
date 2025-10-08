@@ -103,7 +103,6 @@ resource "aws_security_group" "private_sg" {
 resource "aws_instance" "private_test_instance" {
   ami           = "ami-052064a798f08f0d3"
   instance_type = "t3.micro"
-  instance_type               = "t2.micro"
   # key_name                    = aws_key_pair.deployer.key_name
   vpc_security_group_ids      = [aws_security_group.private_sg.id]
   # Desliga a atribuição automática de IP público (característica da subnet privada)
