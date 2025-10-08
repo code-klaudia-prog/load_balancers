@@ -1,123 +1,91 @@
-provider "aws" {
-  region = "us-east-1" 
-}
+# main.tf
 
-# 2. Configuração do Provedor TFE (Para interagir com o Terraform Cloud API)
+# 1. Configuração do Provedor e Requisitos do Terraform
 terraform {
   required_providers {
-    # Define a fonte e a versão do provedor TFE
-    tfe = {
-      source  = "hashicorp/tfe"
-      version = "~> 0.70.0"
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
     }
   }
 }
 
-# --- 1. Dependências do IAM para o SSM ---
-
-# Policy de confiaça (Trust Policy) para o EC2 e SSM
-data "aws_iam_policy_document" "assume_role_ssm" {
-  statement {
-    actions = ["sts:AssumeRole"]
-    principals {
-      type        = "Service"
-      identifiers = ["ec2.amazonaws.com", "ssm.amazonaws.com"]
-    }
-  }
+# Configuração do Provedor AWS
+# **ATENÇÃO:** Altere a 'region' para a sua preferida (ex: 'eu-west-1')
+provider "aws" {
+  region = "eu-west-1"
 }
 
-# IAM Role para ser anexada à instância EC2
-resource "aws_iam_role" "ssm_role" {
-  name               = "ssm-run-command-role"
-  assume_role_policy = data.aws_iam_policy_document.assume_role_ssm.json
+# 2. Descoberta das Availability Zones
+# Usamos um data source para garantir que a região tenha pelo menos 2 AZs disponíveis.
+data "aws_availability_zones" "available" {
+  # Filtra para ter pelo menos 2 AZs (o número de subnets em pares que você pediu)
+  state = "available"
 }
 
-# Anexa a política gerenciada do SSM
-resource "aws_iam_role_policy_attachment" "ssm_policy_attachment" {
-  role       = aws_iam_role.ssm_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
+# 3. Criação da VPC Avançada com o Módulo
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "~> 5.0" # Use a versão mais recente e estável
 
-# Instance Profile (Perfil de Instância) para o EC2
-# Este recurso é usado para associar o Role ao EC2
-resource "aws_iam_instance_profile" "ssm_instance_profile" {
-  name = "ssm-run-command-profile"
-  role = aws_iam_role.ssm_role.name
-}
+  # Requisito 1: VPC CIDR Block
+  name = "vpc-avancada-tf"
+  cidr = "10.0.0.0/16"
 
-# Nota: Certifique-se de que sua instância EC2 existente/nova use
-# aws_iam_instance_profile.ssm_instance_profile.name no parâmetro
-# 'iam_instance_profile' da resource 'aws_instance'.
-
-
-# --- 2. Criação de um Documento SSM Personalizado (Documento Command) ---
-
-resource "aws_ssm_document" "test_run_command_document" {
-  name            = "CustomRunShellScriptExample"
-  document_type   = "Command"
-  document_format = "JSON"
-  content = jsonencode({
-    schemaVersion = "1.2",
-    description   = "Executa um comando shell simples de teste.",
-    parameters    = {},
-    runtimeConfig = {
-      "aws:runShellScript" = {
-        properties = [
-          {
-            id = "0.aws:runShellScript"
-            runCommand = [
-              "echo 'Iniciando execução do Run Command...'",
-              "echo 'Data e hora atuais: $(date)' >> /tmp/run_command_test.txt",
-              "echo 'Execução concluída! Confira o arquivo /tmp/run_command_test.txt'",
-              "cat /tmp/run_command_test.txt"
-            ]
-          },
-        ]
-      }
-    }
-  })
-}
-
-# --- 3. Associação SSM para Executar o Comando ---
-
-# Use 'aws_ssm_association' para agendar ou aplicar o comando.
-# NOTA: Para uma execução imediata e única (como "Run Command"),
-# o recurso 'aws_ssm_association' configura a "State Manager".
-# Se você deseja uma execução *única* e *imediata* como o comando 'send-command'
-# da CLI/Console, é mais complicado com o Terraform. A Association (Associação)
-# criará um estado desejado (que pode ser executado uma vez, ou agendado).
-
-# O exemplo abaixo cria uma associação que executa o comando uma única vez
-# no momento da criação da association, pois não tem 'schedule_expression'.
-# Você pode ter que esperar o estado da EC2 se tornar "Managed" pelo SSM (demora alguns minutos).
-
-resource "aws_ssm_association" "run_test_command" {
-  name = aws_ssm_document.test_run_command_document.name
+  # Requisito 2: Distribuição em Múltiplas AZs
+  # Usa as duas primeiras AZs disponíveis
+  azs             = slice(data.aws_availability_zones.available.names, 0, 2)
   
-  # Altere para o ID da sua instância EC2!
-  targets {
-    key    = "InstanceIds"
-    values = ["i-xxxxxxxxxxxxxxxxx"] # SUBSTITUA PELO ID DA SUA INSTÂNCIA
+  # Requisito 3: CIDRs Específicos para Subnets Públicas
+  # A ordem dos CIDRs corresponde à ordem das AZs em 'azs'
+  public_subnets  = ["10.0.1.0/24", "10.0.3.0/24"]
+  
+  # Requisito 3: CIDRs Específicos para Subnets Privadas
+  private_subnets = ["10.0.2.0/24", "10.0.4.0/24"]
+
+  # Configuração de Gateways
+  enable_nat_gateway     = true          # Cria um NAT Gateway em cada AZ (melhor para redundância)
+  single_nat_gateway     = false         # Garante que cria um NAT GW por AZ (por isso é 'false')
+  enable_dns_hostnames   = true
+  enable_dns_support     = true
+
+  # Roteamento entre Subnets Privadas:
+  # O roteamento interno (entre subnets privadas dentro da mesma VPC) é
+  # automaticamente gerado pela AWS através da 'Main Route Table' da VPC.
+  # O módulo cuida de associar as subnets privadas a tabelas de rotas que
+  # não têm rota para o IGW (Internet Gateway), mas mantêm a rota para o CIDR
+  # da própria VPC (10.0.0.0/16), permitindo a comunicação interna.
+
+  tags = {
+    Terraform   = "true"
+    Ambiente    = "Desenvolvimento"
+    Projeto     = "VPC Avancada"
   }
-
-  # Executa o comando apenas uma vez no momento da criação da associação
-  association_name = "RunTestCommand-OneTime"
-  schedule_expression = "rate(7 days)" # Opcional: define um agendamento para reexecutar, se omitir, ele pode executar uma vez.
-                                       # Sugestão: use 'rate(7 days)' ou 'cron(0 0 ? * * *)' se você não quiser
-                                       # que ele re-execute imediatamente após falha, mas o SSM agent tentará reexecutar se a instância
-                                       # estiver offline. Para uma execução única, o ideal seria não usar este recurso ou 
-                                       # usar um módulo externo (como null_resource com local-exec para chamar a AWS CLI).
-
-  # Define um limite para o número de instâncias/erros
-  max_concurrency = "100%"
-  max_errors      = "1"
 }
 
-# --- 4. Variáveis (Adicionar ao seu 'variables.tf') ---
-
-/*
-variable "ec2_instance_id" {
-  description = "O ID da instância EC2 de destino para o SSM Run Command."
-  type        = string
+# 4. Outputs para Verificação
+# Estes outputs ajudam a verificar os requisitos 2, 3 e 4.
+output "vpc_id" {
+  description = "ID da VPC Criada"
+  value       = module.vpc.vpc_id
 }
-*/
+
+output "public_subnets" {
+  description = "IDs e AZs das Subnets Públicas"
+  value       = zipmap(module.vpc.public_subnets_names, module.vpc.public_subnets_azs)
+}
+
+output "private_subnets" {
+  description = "IDs e AZs das Subnets Privadas"
+  value       = zipmap(module.vpc.private_subnets_names, module.vpc.private_subnets_azs)
+}
+
+output "public_route_table_routes" {
+  description = "Rotas da Tabela Pública (deve ter rota para 0.0.0.0/0 via IGW)"
+  value       = module.vpc.public_route_table_routes
+}
+
+output "private_route_table_routes" {
+  description = "Rotas das Tabelas Privadas (deve ter rota para 0.0.0.0/0 via NAT Gateway)"
+  value       = module.vpc.private_route_table_routes
+}
