@@ -44,29 +44,3 @@ module "vpc" {
     Projeto     = "VPC Avancada"
   }
 }
-
-# Outputs para Verificação
-output "vpc_id" {
-  description = "ID da VPC Criada"
-  value       = module.vpc.vpc_id
-}
-
-output "public_subnets" {
-  description = "IDs e AZs das Subnets Públicas"
-  value       = zipmap(module.vpc.public_subnets_names, module.vpc.public_subnets_azs)
-}
-
-output "private_subnets" {
-  description = "IDs e AZs das Subnets Privadas"
-  value       = zipmap(module.vpc.private_subnets_names, module.vpc.private_subnets_azs)
-}
-
-output "public_route_table_routes" {
-  description = "Rotas da Tabela Pública (deve ter rota para 0.0.0.0/0 via IGW)"
-  value       = module.vpc.public_route_table_routes
-}
-
-output "private_route_table_routes" {
-  description = "Rotas das Tabelas Privadas (deve ter rota para 0.0.0.0/0 via NAT Gateway)"
-  value       = module.vpc.private_route_table_routes
-}
