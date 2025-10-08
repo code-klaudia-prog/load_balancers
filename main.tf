@@ -106,7 +106,7 @@ resource "aws_instance" "private_test_instance" {
   # key_name                    = aws_key_pair.deployer.key_name
   vpc_security_group_ids      = [aws_security_group.private_sg.id]
   # Desliga a atribuição automática de IP público (característica da subnet privada)
-  associate_public_ip_address = false
+  associate_public_ip_address = true
 
   tags = {
     Name = "Private Test Instance via NAT GW"
