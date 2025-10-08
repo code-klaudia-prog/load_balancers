@@ -106,7 +106,7 @@ resource "aws_instance" "private_test_instance" {
   subnet_id                   = module.vpc.private_subnets[0]
   ami                         = data.aws_ami.amazon_linux.id
   instance_type               = "t2.micro"
-  key_name                    = aws_key_pair.deployer.key_name
+  # key_name                    = aws_key_pair.deployer.key_name
   vpc_security_group_ids      = [aws_security_group.private_sg.id]
   # Desliga a atribuição automática de IP público (característica da subnet privada)
   associate_public_ip_address = false
