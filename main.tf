@@ -15,7 +15,7 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
-# Criação da VPC
+# Create VPC
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "~> 5.0" # Use a versão mais recente e estável
@@ -24,23 +24,94 @@ module "vpc" {
   name = "vpc-avancada-tf"
   cidr = "10.0.0.0/16"
 
-  # Distribuição em Múltiplas AZs
+  # Multiple AZ Distribution
   azs             = slice(data.aws_availability_zones.available.names, 0, 2)
   
-  # CIDRs Específicos para Subnets Públicas
+  # CIDRs for Public Subnets
   public_subnets  = ["10.0.1.0/24", "10.0.3.0/24"]
   
-  # CIDRs Específicos para Subnets Privadas
+  # CIDRs for Private Subnets
   private_subnets = ["10.0.2.0/24", "10.0.4.0/24"]
 
-  # Configuração de Gateways
-  enable_nat_gateway     = true          # Cria um NAT Gateway em cada AZ (melhor para redundância)
-  single_nat_gateway     = false         # Garante que cria um NAT GW por AZ (por isso é 'false')
+  # Gateways Configuration
+  enable_nat_gateway     = true  
+  single_nat_gateway     = false
   enable_dns_hostnames   = true
   enable_dns_support     = true
   tags = {
     Terraform   = "true"
     Ambiente    = "Desenvolvimento"
     Projeto     = "VPC Avancada"
+  }
+}
+
+# Testing Connectivity
+
+# Find the most recent ami (Amazon Linux 2)
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
+# Create a Key Pair for SSH access to access the EC2 instance through Bastion Host
+# resource "aws_key_pair" "deployer" {
+#  key_name   = "private-instance-key"
+#  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC4" # Replace
+#}
+
+# Create a Security Group for the private EC2 instance
+
+resource "aws_security_group" "private_sg" {
+  name        = "private-instance-sg"
+  description = "Security group for private instances"
+  vpc_id      = module.vpc.vpc_id
+
+  # Inbound Rule - Allows SSH conection from the outside into the VPC through the Bastion Host
+  ingress {
+    description = "Allow SSH from within VPC CIDR"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    # Allows SSH acces by any resource within the VPC (10.0.0.0/16)
+    cidr_blocks = [module.vpc.vpc_cidr_block]
+  }
+
+  # Outbound Rule -This is what allows the NAT Gateway test
+  # It allows all outbound traffic (routed trhough the NAT Gateway)
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "PrivateSG"
+  }
+}
+
+# Create an EC2 instance on the Private Subnet in order to Test 
+resource "aws_instance" "private_test_instance" {
+  # Usa a primeira subnet privada criada pelo módulo (ex: 10.0.2.0/24)
+  subnet_id                   = module.vpc.private_subnets[0]
+  ami                         = data.aws_ami.amazon_linux.id
+  instance_type               = "t2.micro"
+  key_name                    = aws_key_pair.deployer.key_name
+  vpc_security_group_ids      = [aws_security_group.private_sg.id]
+  # Desliga a atribuição automática de IP público (característica da subnet privada)
+  associate_public_ip_address = false
+
+  tags = {
+    Name = "Private Test Instance via NAT GW"
   }
 }
