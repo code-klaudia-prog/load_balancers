@@ -15,7 +15,8 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
-# Create VPC
+# Create VPC, subnets and NAT Gateways
+
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "~> 5.0" # Use a versão mais recente e estável
@@ -45,35 +46,44 @@ module "vpc" {
   }
 }
 
-# Testing Connectivity
+# Security Group Deployment is linked to the VPC
+resource "aws_security_group" "bastion_sg" {
+  name        = "private-instance-sg"
+  description = "Bastion host SG"
+  vpc_id      = module.vpc.vpc_id
 
-# Find the most recent ami (Amazon Linux 2)
-data "aws_ami" "amazon_linux" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  # Inbound Rule - Allows all SSH conections from the outside (from the Internet Gateway)
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
+  # Outbound Rule is not needed because, by default, it allows all traffic to leave 
 }
 
-# Create a Key Pair for SSH access to access the EC2 instance through Bastion Host
-# resource "aws_key_pair" "deployer" {
-#  key_name   = "private-instance-key"
-#  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC4" # Replace
-#}
+# Bastion Host
+resource "aws_instance" "bastion_host" {
+  ami           = "ami-052064a798f08f0d3"
+ instance_type = "t3.micro"
+  
+  # Associação à sub-rede publica "10.0.3.0/24" denominada de "vpc-avancada-tf-public-us-east-1a"
+  subnet_id = "subnet-0e8280d1b860487a8"
+  
+  # Associação ao Security Group
+  vpc_security_group_ids = [aws_security_group.bastion_sg.id] 
+  
+  # Como é um Bastion Host numa sub-rede pública, deve ter um IP público associado
+  associate_public_ip_address = true 
+}
 
+
+# Private EC2 Part
 # Create a Security Group for the private EC2 instance
-
-resource "aws_security_group" "private_sg" {
-  name        = "private-instance-sg"
-  description = "Security group for private instances"
+resource "aws_security_group" "private_ec2" {
+  name        = "private-ec2-instance-sg"
+  description = "Security group for private instance"
   vpc_id      = module.vpc.vpc_id
 
   # Inbound Rule - Allows SSH conection from the outside into the VPC through the Bastion Host
@@ -95,20 +105,26 @@ resource "aws_security_group" "private_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = {
-    Name = "PrivateSG"
-  }
 }
 
-resource "aws_instance" "private_test_instance" {
-  ami           = "ami-052064a798f08f0d3"
-  instance_type = "t3.micro"
-  # key_name                    = aws_key_pair.deployer.key_name
-  vpc_security_group_ids      = [aws_security_group.private_sg.id]
-  # Desliga a atribuição automática de IP público (característica da subnet privada)
-  associate_public_ip_address = true
+# Create a Key Pair for SSH access to access the EC2 instance through Bastion Host
+# resource "aws_key_pair" "deployer" {
+#  key_name   = "private-instance-key"
+#  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC4" # Replace
+#}
 
-  tags = {
-    Name = "Private Test Instance via NAT GW"
-  }
+
+resource "aws_instance" "ec2_prinvate_instance" {
+  ami           = "ami-052064a798f08f0d3"                         # AMI válido e North Virginia
+  instance_type = "t3.micro"  
+  # key_name    = aws_key_pair.deployer.key_name
+
+  # Associação à sub-rede
+  subnet_id     = "subnet-07f0aaa3d19313980" 
+
+  # Associação ao Security Group
+  vpc_security_group_ids = [aws_security_group.private_ec2.id]   
+
+  # Desliga a atribuição automática de IP público (característica da subnet privada)
+  associate_public_ip_address = true 
 }
