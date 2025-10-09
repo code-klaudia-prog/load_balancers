@@ -89,7 +89,7 @@ resource "aws_instance" "bastion_host" {
   vpc_security_group_ids = [aws_security_group.bastion_sg.id] 
   
   # Como é um Bastion Host numa sub-rede pública, deve ter um IP público associado
-  associate_public_ip_address = true 
+  # associate_public_ip_address = true 
 }
 
 
@@ -136,9 +136,8 @@ resource "aws_instance" "ec2_prinvate_instance" {
 
   # Associação ao Security Group
   vpc_security_group_ids = [aws_security_group.private_ec2.id]   
-
   # Desliga a atribuição automática de IP público (característica da subnet privada)
-  associate_public_ip_address = true 
+  # associate_public_ip_address = true 
 }
 
 # Create an Internet Gateway (IGW)
