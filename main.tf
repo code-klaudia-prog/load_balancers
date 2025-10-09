@@ -1,3 +1,17 @@
+# 1. Configuração do Provedor AWS (Onde os seus recursos de nuvem serão criados)
+provider "aws" {
+  region = "us-east-1" 
+}
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 3.0.0"
+    }
+  }
+}
+
 provider "aws" {
   region = "us-east-1" 
 }
@@ -104,7 +118,6 @@ resource "aws_security_group" "private_ec2" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
 }
 
 # Create a Key Pair for SSH access to access the EC2 instance through Bastion Host
@@ -112,7 +125,6 @@ resource "aws_security_group" "private_ec2" {
 #  key_name   = "private-instance-key"
 #  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC4" # Replace
 #}
-
 
 resource "aws_instance" "ec2_prinvate_instance" {
   ami           = "ami-052064a798f08f0d3"                         # AMI válido e North Virginia
@@ -127,4 +139,9 @@ resource "aws_instance" "ec2_prinvate_instance" {
 
   # Desliga a atribuição automática de IP público (característica da subnet privada)
   associate_public_ip_address = true 
+}
+
+# Create an Internet Gateway (IGW)
+resource "aws_internet_gateway" "my_igw" {
+  vpc_id      = module.vpc.vpc_id
 }
